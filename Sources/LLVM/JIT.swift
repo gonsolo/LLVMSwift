@@ -15,7 +15,7 @@ public final class JIT {
     self.mainDyLib = LLVMOrcLLJITGetMainJITDylib(jit!.pointee)
   }
 
-  func compile(module: Module, name: String) -> LLVMOrcExecutorAddress {
+  public func compile(module: Module, name: String) -> LLVMOrcExecutorAddress {
     let threadContext = LLVMOrcCreateNewThreadSafeContext()
     let threadModule = LLVMOrcCreateNewThreadSafeModule(module.llvm, threadContext)
     LLVMOrcLLJITAddLLVMIRModule(jit!.pointee, self.mainDyLib, threadModule)
