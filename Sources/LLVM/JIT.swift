@@ -4,7 +4,7 @@
 
 public final class JIT {
 
-  let jit = UnsafeMutablePointer<LLVMOrcLLJITRef?>(bitPattern: 0)
+  let jit: UnsafeMutablePointer<LLVMOrcLLJITRef?>? = nil
   let mainDyLib: LLVMOrcJITDylibRef
 
   public init() {
