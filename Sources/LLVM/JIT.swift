@@ -11,7 +11,8 @@ public final class JIT {
     LLVMInitializeNativeTarget()
     LLVMInitializeNativeAsmPrinter()
 
-    LLVMOrcCreateLLJIT(self.jit, nil)
+    let jitBuilder = LLVMOrcCreateLLJITBuilder()
+    LLVMOrcCreateLLJIT(self.jit, jitBuilder)
     self.mainDyLib = LLVMOrcLLJITGetMainJITDylib(jit!.pointee)
   }
 
