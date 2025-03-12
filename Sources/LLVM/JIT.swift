@@ -29,18 +29,22 @@ public enum JITError: Error, CustomStringConvertible {
 public final class JIT {
   /// A type that represents an address, either symbolically within the JIT or
   /// physically in the execution environment.
+
   public struct TargetAddress: Comparable {
+
+    fileprivate var llvm: LLVMOrcJITTargetAddress
 
     /// Creates a target address value of `0`.
     public init() {
+      self.llvm = 0
     }
 
     public static func == (lhs: TargetAddress, rhs: TargetAddress) -> Bool {
-      return true
+      return lhs.llvm == rhs.llvm
     }
 
     public static func < (lhs: TargetAddress, rhs: TargetAddress) -> Bool {
-      return true
+      return lhs.llvm < rhs.llvm
     }
   }
 
