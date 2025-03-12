@@ -1,4 +1,5 @@
 #if SWIFT_PACKAGE
+import Glibc
 import cllvm
 #endif
 
@@ -586,7 +587,7 @@ extension Module {
   ///
   /// - returns: A value representing the newly created alias.
   public func addAlias(name: String, to aliasee: IRGlobal, type: IRType) -> Alias {
-    return Alias(llvm: LLVMAddAlias(llvm, type.asLLVM(), aliasee.asLLVM(), name))
+    return Alias(llvm: LLVMAddAlias2(llvm, type.asLLVM(), 0, aliasee.asLLVM(), name))
   }
 
   /// Append to the module-scope inline assembly blocks.
