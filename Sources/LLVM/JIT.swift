@@ -21,10 +21,10 @@ public final class JIT {
     let threadModule = LLVMOrcCreateNewThreadSafeModule(module.llvm, threadContext)
     LLVMOrcLLJITAddLLVMIRModule(jit, self.mainDyLib, threadModule)
 
-    let res = UnsafeMutablePointer<LLVMOrcExecutorAddress>(bitPattern: 0)
-    LLVMOrcLLJITLookup(jit, res, name)
+    var res: LLVMOrcExecutorAddress = 0
+    LLVMOrcLLJITLookup(jit, &res, name)
 
-    return res!.pointee
+    return res
   }
 
   deinit {
