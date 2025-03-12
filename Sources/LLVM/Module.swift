@@ -84,7 +84,6 @@ public final class Module: CustomStringConvertible {
   /// Returns the context associated with this module.
   public let context: Context
 
-
   /// Creates a `Module` with the given name.
   ///
   /// - parameter name: The name of the module.
@@ -98,7 +97,6 @@ public final class Module: CustomStringConvertible {
     self.llvm = LLVMModuleCreateWithNameInContext(name, context.llvm)
     self.context = context
   }
-
 
   /// Deinitialize this value and dispose of its resources.
   deinit {

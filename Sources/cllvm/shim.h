@@ -14,6 +14,7 @@
 #include <llvm-c/ExecutionEngine.h>
 #include <llvm-c/IRReader.h>
 #include <llvm-c/Linker.h>
+#include <llvm-c/LLJIT.h>
 #include <llvm-c/lto.h>
 #include <llvm-c/Object.h>
 #include <llvm-c/Orc.h>

@@ -1,254 +1,33 @@
 #if SWIFT_PACKAGE
-import cllvm
+  import cllvm
 #endif
 
-/// JITError represents the different kinds of errors the JIT compiler can
-/// throw.
-public enum JITError: Error, CustomStringConvertible {
-  /// A generic error thrown by the JIT during exceptional circumstances.
-  ///
-  /// In general, it is not safe to catch and continue after this exception has
-  /// been thrown.
-  case generic(String)
-
-  public var description: String {
-    switch self {
-    case let .generic(desc):
-      return desc
-    }
-  }
-}
-
-/// A `JIT` is a Just-In-Time compiler that will compile and execute LLVM IR
-/// that has been generated in a `Module`. It can execute arbitrary functions
-/// and return the value the function generated, allowing you to write
-/// interactive programs that will run as soon as they are compiled.
-///
-/// The JIT is fundamentally lazy, and allows control over when and how symbols
-/// are resolved.
 public final class JIT {
-  /// A type that represents an address, either symbolically within the JIT or
-  /// physically in the execution environment.
 
-  public struct TargetAddress: Comparable {
+  let jit: UnsafeMutablePointer<LLVMOrcLLJITRef?>? = nil
+  let mainDyLib: LLVMOrcJITDylibRef
 
-    fileprivate var llvm: LLVMOrcJITTargetAddress
+  public init() {
+    LLVMInitializeNativeTarget()
+    LLVMInitializeNativeAsmPrinter()
 
-    /// Creates a target address value of `0`.
-    public init() {
-      self.llvm = 0
-    }
-
-    public static func == (lhs: TargetAddress, rhs: TargetAddress) -> Bool {
-      return lhs.llvm == rhs.llvm
-    }
-
-    public static func < (lhs: TargetAddress, rhs: TargetAddress) -> Bool {
-      return lhs.llvm < rhs.llvm
-    }
+    LLVMOrcCreateLLJIT(self.jit, nil)
+    self.mainDyLib = LLVMOrcLLJITGetMainJITDylib(jit!.pointee)
   }
 
-  /// Represents a handle to a module owned by the JIT stack.
-  public struct ModuleHandle {
+  func compile(module: Module, name: String) -> LLVMOrcExecutorAddress {
+    let threadContext = LLVMOrcCreateNewThreadSafeContext()
+    let threadModule = LLVMOrcCreateNewThreadSafeModule(module.llvm, threadContext)
+    LLVMOrcLLJITAddLLVMIRModule(jit!.pointee, self.mainDyLib, threadModule)
+
+    let res = UnsafeMutablePointer<LLVMOrcExecutorAddress>(bitPattern: 0)
+    LLVMOrcLLJITLookup(jit!.pointee, res, name)
+
+    return res!.pointee
   }
 
-  /// The underlying LLVMExecutionEngineRef backing this JIT.
-  private let ownsContext: Bool
-
-  internal init(ownsContext: Bool) {
-    self.ownsContext = ownsContext
-  }
-
-  /// Create and initialize a `JIT` with this target machine's representation.
-  public convenience init(machine: TargetMachine) {
-    // The JIT stack takes ownership of the target machine.
-    machine.ownsContext = false
-    self.init(ownsContext: true)
-  }
-
-  /// Deinitialize this value and dispose of its resources.
   deinit {
-    guard self.ownsContext else {
-      return
-    }
-  }
-
-  // MARK: Symbols
-
-  /// Mangles the given symbol name according to the data layout of the JIT's
-  /// target machine.
-  ///
-  /// - parameter symbol: The symbol name to mangle.
-  /// - returns: A mangled representation of the given symbol name.
-  public func mangle(symbol: String) -> String {
-    let mangledResult: UnsafeMutablePointer<Int8>? = nil
-    guard let result = mangledResult else {
-      fatalError("Mangled name should never be nil!")
-    }
-    return String(cString: result)
-  }
-
-  /// Computes the address of the given symbol, optionally restricting the
-  /// search for its address to a particular module.  If this symbol does not
-  /// exist, an address of `0` is returned.
-  ///
-  /// - parameter symbol: The symbol name to search for.
-  /// - parameter module: An optional value describing the module in which to
-  ///   restrict the search, if any.
-  /// - returns: The address of the symbol, or 0 if it does not exist.
-  public func address(of symbol: String, in module: ModuleHandle? = nil) throws -> TargetAddress {
-    return TargetAddress()
-  }
-
-  // MARK: Lazy Compilation
-
-  /// Registers a lazy compile callback that can be used to get the target
-  /// address of a trampoline function.  When that trampoline address is
-  /// called, the given compilation callback is fired.
-  ///
-  /// Normally, the trampoline function is a known stub that has been previously
-  /// registered with the JIT.  The callback then computes the address of a
-  /// known entry point and sets the address of the stub to it. See
-  /// `JIT.createIndirectStub` to create a stub function and
-  /// `JIT.setIndirectStubPointer` to set the address of a stub.
-  ///
-  /// - parameter callback: A callback that returns the actual address of the
-  ///   trampoline function.
-  /// - returns: The target address representing a stub.  Calling this stub
-  ///   forces the given compilation callback to fire.
-  public func registerLazyCompile(_ callback: @escaping (JIT) -> TargetAddress) throws -> TargetAddress {
-    return TargetAddress()
-  }
-
-  // MARK: Stubs
-
-  /// Creates a new named indirect stub pointing to the given target address.
-  ///
-  /// An indirect stub may be resolved to a different address at any time by
-  /// invoking `JIT.setIndirectStubPointer`.
-  ///
-  /// - parameter name: The name of the indirect stub.
-  /// - parameter address: The address of the indirect stub.
-  public func createIndirectStub(named name: String, address: TargetAddress) throws {
-  }
-
-  /// Resets the address of an indirect stub.
-  ///
-  /// - warning: The indirect stub must be registered with a call to
-  ///   `JIT.createIndirectStub`.  Failure to do so will result in undefined
-  ///   behavior.
-  ///
-  /// - parameter name: The name of an indirect stub.
-  /// - parameter address: The address to set the indirect stub to point to.
-  public func setIndirectStubPointer(named name: String, address: TargetAddress) throws {
-  }
-
-  // MARK: Adding Code to the JIT
-
-  /// Adds the IR from a given module to the JIT, consuming it in the process.
-  ///
-  /// Despite the name of this function, the callback to compile the symbols in
-  /// the module is not necessarily called immediately.  It is called at least
-  /// when a given symbol's address is requested, either by the JIT or by
-  /// the user e.g. `JIT.address(of:)`.
-  ///
-  /// The callback function is required to compute the address of the given
-  /// symbol.  The symbols are passed in mangled form.  Use
-  /// `JIT.mangle(symbol:)` to request the mangled name of a symbol.
-  ///
-  /// - warning: The JIT invalidates the underlying reference to the provided
-  ///   module.  Further references to the module are thus dangling pointers and
-  ///   may be a source of subtle memory bugs.  This will be addressed in a
-  ///   future revision of LLVM.
-  ///
-  /// - parameter module: The module to compile.
-  /// - parameter callback: A function that is called by the JIT to compute the
-  ///   address of symbols.
-  public func addEagerlyCompiledIR(
-    _ module: Module,
-    _ callback: @escaping (String)
-      -> TargetAddress
-  ) throws -> ModuleHandle {
-    // The JIT stack takes ownership of the given module.
-    module.ownsContext = false
-    return ModuleHandle()
-  }
-
-  /// Adds the IR from a given module to the JIT, consuming it in the process.
-  ///
-  /// This function differs from `JIT.addEagerlyCompiledIR` in that the callback
-  /// to request the address of symbols is only executed when that symbol is
-  /// called, either in user code or by the JIT.
-  ///
-  /// The callback function is required to compute the address of the given
-  /// symbol.  The symbols are passed in mangled form.  Use
-  /// `JIT.mangle(symbol:)` to request the mangled name of a symbol.
-  ///
-  /// - warning: The JIT invalidates the underlying reference to the provided
-  ///   module.  Further references to the module are thus dangling pointers and
-  ///   may be a source of subtle memory bugs.  This will be addressed in a
-  ///   future revision of LLVM.
-  ///
-  /// - parameter module: The module to compile.
-  /// - parameter callback: A function that is called by the JIT to compute the
-  ///   address of symbols.
-  public func addLazilyCompiledIR(_ module: Module, _ callback: @escaping (String) -> TargetAddress) throws -> ModuleHandle {
-    // The JIT stack takes ownership of the given module.
-    module.ownsContext = false
-    return ModuleHandle()
-  }
-
-  /// Adds the executable code from an object file to ths JIT, consuming it in
-  /// the process.
-  ///
-  /// The callback function is required to compute the address of the given
-  /// symbol.  The symbols are passed in mangled form.  Use
-  /// `JIT.mangle(symbol:)` to request the mangled name of a symbol.
-  ///
-  /// - warning: The JIT invalidates the underlying reference to the provided
-  ///   memory buffer.  Further references to the buffer are thus dangling
-  ///   pointers and may be a source of subtle memory bugs.  This will be
-  ///   addressed in a future revision of LLVM.
-  ///
-  /// - parameter buffer: A buffer containing an object file.
-  /// - parameter callback: A function that is called by the JIT to compute the
-  ///   address of symbols.
-  public func addObjectFile(_ buffer: MemoryBuffer, _ callback: @escaping (String) -> TargetAddress) throws -> ModuleHandle {
-    // The JIT stack takes ownership of the given buffer.
-    buffer.ownsContext = false
-    return ModuleHandle()
-  }
-
-  /// Remove previously-added code from the JIT.
-  ///
-  /// - warning: Removing a module handle consumes the handle.  Further use of
-  ///   the handle will then result in undefined behavior.
-  ///
-  /// - parameter handle: A handle to previously-added module.
-  public func removeModule(_ handle: ModuleHandle) throws {
-  }
-
-  private func checkForJITError(_ orcError: LLVMErrorRef!) throws {
-    guard let err = orcError else {
-      return
-    }
-
-    switch LLVMGetErrorTypeId(err)! {
-    case LLVMGetStringErrorTypeId():
-      guard let msg = LLVMGetErrorMessage(err) else {
-        fatalError("Couldn't get the error message?")
-      }
-      throw JITError.generic(String(cString: msg))
-    default:
-      fatalError("Couldn't get the error message?")
-    }
-  }
-}
-
-private class ORCSymbolCallbackContext {
-  fileprivate let block: (String) -> JIT.TargetAddress
-
-  fileprivate init(_ block: @escaping (String) -> JIT.TargetAddress) {
-    self.block = block
+    LLVMOrcDisposeLLJIT(jit!.pointee)
+    LLVMShutdown()
   }
 }
