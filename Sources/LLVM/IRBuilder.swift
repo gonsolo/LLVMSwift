@@ -322,16 +322,20 @@ extension IRBuilder {
   /// - parameter name: The name for the newly inserted instruction.
   ///
   /// - returns: A value representing the negation of the given value.
-  public func buildNeg(_ value: IRValue,
-                       overflowBehavior: OverflowBehavior = .default,
-                       name: String = "") -> IRValue {
+  public func buildNeg(
+    _ value: IRValue,
+    overflowBehavior: OverflowBehavior = .default,
+    name: String = ""
+  ) -> IRValue {
     let val = value.asLLVM()
     if value.type is IntType {
       switch overflowBehavior {
       case .noSignedWrap:
         return LLVMBuildNSWNeg(llvm, val, name)
       case .noUnsignedWrap:
-        return LLVMBuildNUWNeg(llvm, val, name)
+        let negInst = LLVMBuildNeg(llvm, val, name)
+        LLVMSetNUW(negInst, 1)
+        return negInst!
       case .default:
         return LLVMBuildNeg(llvm, val, name)
       }

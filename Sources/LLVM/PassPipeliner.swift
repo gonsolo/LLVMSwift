@@ -185,7 +185,7 @@ extension PassPipeliner {
     optimization: CodeGenOptLevel = .`default`,
     size: CodeGenOptLevel = .none
   ) {
-    let modulePasses = LLVMCreatePassManager()!
+    _ = LLVMCreatePassManager()!
   }
 }
 

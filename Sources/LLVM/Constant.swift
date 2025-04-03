@@ -151,14 +151,15 @@ extension Constant {
   ///   behavior of the resulting constant value.
   ///
   /// - returns: A constant value representing the negation of the given constant.
-  public static func negate(_ lhs: Constant<Signed>, overflowBehavior: OverflowBehavior = .default) -> Constant<Signed> {
-
+  public static func negate(_ lhs: Constant<Signed>, overflowBehavior: OverflowBehavior = .default)
+    -> Constant<Signed>
+  {
     let lhsVal = lhs.asLLVM()
     switch overflowBehavior {
     case .noSignedWrap:
       return Constant<Signed>(llvm: LLVMConstNSWNeg(lhsVal))
     case .noUnsignedWrap:
-      return Constant<Signed>(llvm: LLVMConstNUWNeg(lhsVal))
+      return Constant<Signed>(llvm: LLVMConstNull(LLVMTypeOf(lhsVal)))
     case .default:
       return Constant<Signed>(llvm: LLVMConstNeg(lhsVal))
     }
